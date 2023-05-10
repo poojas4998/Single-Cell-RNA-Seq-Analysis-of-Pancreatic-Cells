@@ -1,0 +1,15 @@
+#!/bin/bash -l
+
+#$ -P bf528
+#$ -cwd
+#$ -j y
+#$ -pe mpi_16_tasks_per_node 16
+
+echo "Running job $JOB_ID"
+echo "Started: $(date +%F)"
+echo "Running in directory: $PWD"
+
+module load salmon
+
+salmon index -t /projectnb/bf528/users/group_5/project_4/data_curator/gencode.v43.transcripts.fa.gz -i /projectnb/bf528/users/group_5/project_4/data_curator/salmon_index_gencode_flag/ --gencode
+echo "Job finished: $(date +%F)" 

@@ -1,0 +1,13 @@
+#!/bin/bash -l
+
+#$ -P bf528
+#$ -cwd
+#$ -j y
+#$ -pe mpi_16_tasks_per_node 16
+
+echo "Running job $JOB_ID"
+echo "Started: $(date +%F)"
+echo "Running in directory: $PWD"
+
+zcat /projectnb/bf528/users/group_5/project_4/data_curator/gencode.v43.transcripts.fa.gz | awk '/^>/{split($0,a," "); print a[1]"\t"a[2]}' | sed 's/>//;s/transcript_id=//;s/gene_id=//' > /projectnb/bf528/users/group_5/project_4/data_curator/txp_to_gene.tsv
+echo "Job finished: $(date +%F)"
