@@ -1,0 +1,143 @@
+---
+title: "Project-4-Analyst"
+author: "Pragya Rawat"
+date: "2023-04-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Load packages used 
+
+library(Seurat)
+library(dplyr)
+library(patchwork)
+library(R.filesets)
+library(ggplot2)
+library(biomaRt)
+library(tidyverse)
+```
+## 4. Load SeuratObject
+```{r}
+# Load data 
+
+cells <- loadRDS("seurat_3.rds")
+```
+
+### 4.1 Identify marker genes for each cluster 
+```{r}
+# Find markers for every cluster compared to all remaining cells, report only the positive ones
+
+markers <- FindAllMarkers(cells, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+markers <- markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC)
+```
+
+```{r}
+# Subset for top 10 markers for every cluster with the highest positive log2fc score
+top_markers <- markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
+```
+
+### 4.2 Label clusters as a cell type based on marker genes
+```{r}
+# Create subset of clusters acording to marker genes from Supple.Table.S2 
+
+alpha <- subset(markers, gene=="GCG")
+beta<- subset(markers, gene=="INS")
+delta <- subset(markers, gene=="SST")
+gamma <- subset(markers, gene=="PPY")
+epsilon <- subset(markers, gene=="GHRL")
+ductal<- subset(markers, gene=="KRT19")
+acinar<- subset(markers, gene=="CPA1")
+stellate <- subset(markers, gene=="PDGFRB")
+vasculat <- subset(markers, gene %in% c("VWF","PECAM1","CD34"))
+macro <- subset(markers,gene %in% c("CD163", "CD68", "IgG"))
+cyto <- subset(markers, gene %in% c("CD3", "CD8"))
+mast <-  subset(markers,gene %in% c("TPSAB1", "KIT", "CPA3"))
+```
+Label the clusters based on marker gene present in each cluster subset:
+Beta(INS) - cluster 4
+Delta(SST) - cluster 0
+Ductal(KRT19) - cluster 9
+Gamma(PPY) - cluster 10
+
+```{r}
+# Assign Cell Type to Clusters
+cell_types <- c("Delta", "1", "2", "3", "Beta", "5", "6", "7", "8", "Ductal", "Gamma", "11", "12", "13")
+names(cell_types) <- levels(cells)
+cells <- RenameIdents(cells, cell_types)
+```
+To find unlabeled clusters, use other resources:
+
+1. CELL X GENE: https://cellxgene.cziscience.com/gene-expression
+A(TTR) - cluster 2
+Mesenchymal(COL1A1, COL3A1, REG3A, REG1B) - cluster 7, cluster 1(low gene expression, high cell count)
+Acinar(PRSS2, CTRB2) - cluster 8 
+Ductal(TACSTD2, KRT8) - cluster 6 
+Endothelial (PLVAP) - cluster 12
+Mast(ACP5) - cluster 13 (high gene expression, low cell count)
+
+
+2. The Human Protein Atlas: https://www.proteinatlas.org/ENSG00000163499-CRYBA2
+Alpha (CRYBA2) - cluster 5
+Beta (CIQL1, ABCC8) - cluster 11
+Ductal (SPTBN2) - cluster 3 
+```{r}
+# Update cell types 
+cell_types <- c("Delta", "Mesenchymal1", "A", "Ductal1", 
+                "Beta1", "Alpha", "Ductal2", "Mesenchymal2", 
+                "Acinar", "Ductal3", "Gamma", "Beta2", "Endothelial", "Mast")
+names(cell_types) <- levels(cells)
+cells <- RenameIdents(cells, cell_types)
+
+#check levels
+levels(cells)
+```
+
+### 4.3 Visualize the clustered cells using a UMAP
+```{r}
+# Clustered UMAP
+png("umap_proj4.png")
+DimPlot(cells, reduction = "umap", label = TRUE, pt.size = 0.5) 
+dev.off()
+```
+
+### 4.4. Visualize the top marker genes in each cluster
+```{r}
+#Heatmap to visualize top marker genes per cluster 
+png("heatmap_proj4.png", height = 1000, width = 1200)
+DoHeatmap(cells, features = top_markers$gene, size=3) 
+dev.off
+```
+### 4.5. Find novel marker genes 
+```{r}
+#Identify novel marker genes
+novel_markers <- FindAllMarkers(cells, only.pos = FALSE, min.pct = 0.25, logfc.threshold = 0.25)
+```
+
+```{r}
+# Find significant novel markers with stricter adjusted p value
+sig_novel_markers <- novel_markers[novel_markers$p_val_adj<0.005,]
+```
+
+### 4.6. Output marker gene information for further downstream analysis 
+```{r}
+#Save marker genes 
+write.csv(markers, "all_markers.csv")
+```
+
+```{r}
+#Save novel markers
+write.csv(sig_novel_markers, "novel_markers.csv")
+```
+
+```{r}
+#Heatmap of novel genes identified previously
+png("heatmap_novel_proj4.png", height = 1000, width = 1200)
+top5 <- sig_novel_markers %>% group_by(cluster) %>% top_n(n=5, wt=avg_log2FC)
+DoHeatmap(cells, features = top5$gene) 
+dev.off()
+```
+
