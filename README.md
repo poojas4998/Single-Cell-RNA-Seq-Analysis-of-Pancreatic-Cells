@@ -1,3 +1,5 @@
+
+# Project 4: Single Cell RNA-Seq Analysis of Pancreatic Cells
 ## Project Description
 
 Repository contains files for BF528 Project 4 for Group 5. It contains R scripts used by the group members, output files, and the final report.
